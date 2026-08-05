@@ -2,10 +2,13 @@ name: Rust build + test
 
 on:
   workflow_dispatch:  # Allows manual triggering
-#  push:
-#    branches: [ "master" ]
-#  pull_request:
-#    branches: [ "master" ]
+  # Upstream's default branch is `master` and it leaves these triggers off.
+  # Ours is `main`, and the Upstream Rebase workflow blocks on check runs
+  # against the `target-patch-*` branch it pushes, so this has to run there.
+  push:
+    branches: [ "main", "target-patch-*" ]
+  pull_request:
+    branches: [ "main" ]
 
 env:
   CARGO_TERM_COLOR: always
