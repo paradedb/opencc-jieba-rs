@@ -4,6 +4,7 @@ use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use opencc_jieba_rs::{OpenCC, OpenccConfig};
 use opencc_tool_common::parse_custom_dict_spec;
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, BufWriter, IsTerminal, Read, Write};
@@ -43,6 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     BLUE, RESET
                 ))
                 .args(common_args())
+                .args(normalization_args())
                 .args(enc_args())
         )
         .subcommand(
@@ -133,6 +135,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .help("Disable HMM for segmentation and tagging"),
                 )
                 .arg(user_dict_arg())
+                .args(normalization_args())
                 .args(enc_args()),
         )
         .get_matches();
@@ -220,6 +223,21 @@ fn common_args() -> Vec<Arg> {
     ]
 }
 
+fn normalization_args() -> Vec<Arg> {
+    vec![
+        Arg::new("norm-compat")
+            .short('n')
+            .long("norm-compat")
+            .action(clap::ArgAction::SetTrue)
+            .help("Normalize CJK Compatibility Ideographs before processing"),
+        Arg::new("norm-compat-extended")
+            .short('E')
+            .long("norm-compat-extended")
+            .action(clap::ArgAction::SetTrue)
+            .help("Normalize extended Unicode compatibility forms before processing"),
+    ]
+}
+
 fn enc_args() -> Vec<Arg> {
     vec![
         Arg::new("in_enc")
@@ -257,6 +275,8 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
         }
     }
 
+    let opencc = build_opencc(matches)?;
+
     let is_console = input_file.is_none();
     let mut input: Box<dyn Read> = match input_file {
         Some(file_name) => Box::new(open_input_file(file_name)?),
@@ -274,8 +294,14 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     }
 
     let input_str = decode_input(&buffer, in_enc)?;
-    let opencc = build_opencc(matches)?;
-    let output_str = opencc.convert(&input_str, config, punctuation);
+
+    let convert_input = normalize_cli_input(
+        &opencc,
+        &input_str,
+        matches.get_flag("norm-compat"),
+        matches.get_flag("norm-compat-extended"),
+    );
+    let output_str = opencc.convert(convert_input.as_ref(), config, punctuation);
 
     let (is_console_output, mut output) = open_output(output_file)?;
 
@@ -291,14 +317,28 @@ fn handle_convert(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
-/// Builds the converter used by the `convert` subcommand.
+/// Applies the optional compatibility pre-pass selected by a text command.
 ///
-/// Without `-D/--custom-dict`, this returns the normal built-in converter.
-/// When one or more custom dictionary specs are supplied, they are parsed and
-/// applied post-load in command-line order.
+/// Extended normalization takes precedence when both flags are supplied,
+/// matching the `opencc-rs` CLI behavior.
+fn normalize_cli_input<'a>(
+    opencc: &OpenCC,
+    input: &'a str,
+    normalize_compat: bool,
+    normalize_compat_extended: bool,
+) -> Cow<'a, str> {
+    if normalize_compat_extended {
+        Cow::Owned(opencc.normalize_compat_extended(input))
+    } else if normalize_compat {
+        Cow::Owned(opencc.normalize_compat(input))
+    } else {
+        Cow::Borrowed(input)
+    }
+}
+
+/// Loads repeatable Jieba user dictionaries in command-line order.
 ///
-/// Custom conversion dictionaries affect OpenCC mappings only; Jieba
-/// segmentation dictionaries remain unchanged.
+/// This affects tokenization only and does not modify OpenCC conversion mappings.
 fn load_user_dict_files(
     opencc: &mut OpenCC,
     matches: &ArgMatches,
@@ -462,6 +502,8 @@ fn handle_segment(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
         }
     }
 
+    let mut opencc = OpenCC::new();
+
     let is_console = input_file.is_none();
     let mut input: Box<dyn Read> = match input_file {
         Some(file_name) => Box::new(open_input_file(file_name)?),
@@ -479,7 +521,7 @@ fn handle_segment(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     }
 
     let mut input_str = decode_input(&buffer, in_enc)?;
-    let mut opencc = OpenCC::new();
+
     load_user_dict_files(&mut opencc, matches)?;
     if is_console {
         input_str = normalize_line_endings(&input_str);
@@ -487,11 +529,20 @@ fn handle_segment(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
         input_str = input_str.trim_end_matches('\n').to_string();
     }
 
+    let segment_input = normalize_cli_input(
+        &opencc,
+        &input_str,
+        matches.get_flag("norm-compat"),
+        matches.get_flag("norm-compat-extended"),
+    );
+
     let output_str = match mode.as_str() {
-        "search" => opencc.jieba_cut_for_search(&input_str, hmm).join(delimiter),
-        "all" => opencc.jieba_cut_all(&input_str).join(delimiter),
+        "search" => opencc
+            .jieba_cut_for_search(segment_input.as_ref(), hmm)
+            .join(delimiter),
+        "all" => opencc.jieba_cut_all(segment_input.as_ref()).join(delimiter),
         "tag" => {
-            let pairs = opencc.jieba_tag(&input_str, hmm);
+            let pairs = opencc.jieba_tag(segment_input.as_ref(), hmm);
             let mut out = String::new();
 
             for (i, (w, t)) in pairs.into_iter().enumerate() {
@@ -505,7 +556,9 @@ fn handle_segment(matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
 
             out
         }
-        _ => opencc.jieba_cut(&input_str, hmm).join(delimiter),
+        _ => opencc
+            .jieba_cut(segment_input.as_ref(), hmm)
+            .join(delimiter),
     };
 
     let (is_console_output, mut output) = open_output(output_file)?;
@@ -787,5 +840,30 @@ mod tests {
                 .kind(),
             io::ErrorKind::InvalidInput
         );
+    }
+
+    #[test]
+    fn cli_normalization_borrows_when_disabled() {
+        let opencc = OpenCC::new();
+        let input = "普通文本";
+
+        assert!(matches!(
+            normalize_cli_input(&opencc, input, false, false),
+            Cow::Borrowed("普通文本")
+        ));
+    }
+
+    #[test]
+    fn cli_normalization_applies_basic_compat() {
+        let opencc = OpenCC::new();
+
+        assert_eq!(normalize_cli_input(&opencc, "金庸", true, false), "金庸");
+    }
+
+    #[test]
+    fn cli_normalization_extended_takes_precedence() {
+        let opencc = OpenCC::new();
+
+        assert_eq!(normalize_cli_input(&opencc, "聼金", true, true), "聽金");
     }
 }

@@ -9,7 +9,7 @@ High-performance Rust-based Chinese text converter using Jieba segmentation and 
 [![Latest Downloads](https://img.shields.io/github/downloads/laisuk/opencc-jieba-rs/latest/total.svg)](https://github.com/laisuk/opencc-jieba-rs/releases/latest)
 ![License](https://img.shields.io/github/license/laisuk/opencc-jieba-rs)
 [![Build and Release](https://github.com/laisuk/opencc-jieba-rs/actions/workflows/release.yml/badge.svg)](https://github.com/laisuk/opencc-jieba-rs/actions/workflows/release.yml)
-![Build Status](https://github.com/laisuk/opencc-jieba-rs/actions/workflows/rust.yml/badge.svg)
+![Build Status](https://github.com/laisuk/opencc-jieba-rs/actions/workflows/rust_build_test.yml/badge.svg)
 
 A Rust-based Chinese text converter powered by **OpenCC lexicons**, using **Jieba** for word segmentation to improve
 phrase-level accuracy. This project aims to provide high-performance and accurate **Simplified ↔ Traditional Chinese**
@@ -21,6 +21,7 @@ phrase-level accuracy. This project aims to provide high-performance and accurat
 - 🔍 Lexicon-driven phrase conversion using OpenCC dictionaries.
 - ⚡ Accurate segmentation powered by Jieba with a **combined Hans + Hant dictionary**.
 - 🔠 Works with both **Simplified (zh-Hans)** and **Traditional (zh-Hant)** Chinese text.
+- 🧹 Optional Unicode compatibility normalization for CJK compatibility and extracted-text forms.
 - 🛠️ Designed to be embedded as a Rust library or used standalone.
 
 ### 🔽 Downloads
@@ -57,6 +58,8 @@ Options:
   -o, --output <file>                 Output <file> (use stdout if omitted for non-office documents)
   -c, --config <config>               Conversion configuration (s2t | s2tw | s2twp | s2hk | s2hkp | t2s | t2tw | t2twp | t2hk | t2hkp | tw2s | tw2sp | tw2t | tw2tp | hk2s | hk2sp | hk2t | hk2tp | jp2t | t2jp)
   -p, --punct                         Enable punctuation conversion
+  -n, --norm-compat                   Normalize CJK Compatibility Ideographs before conversion
+  -E, --norm-compat-extended          Normalize extended Unicode compatibility forms before conversion
   -D, --custom-dict <SLOT:MODE:FILE>  Custom conversion dictionary file, e.g. HKPhrasesRev:append:my_hk_dict.txt (slot names are ASCII case-insensitive)
   -U, --user-dict-file <FILE>         Jieba user dictionary file; may be specified multiple times
       --in-enc <encoding>             Encoding for input: UTF-8|GB2312|GBK|gb18030|BIG5 [default: UTF-8]
@@ -79,6 +82,8 @@ Options:
   -m, --mode <mode>            Segmentation mode: cut | search | all | tag [default: cut] [possible values: cut, search, all, tag]
       --no-hmm                 Disable HMM for segmentation and tagging
   -U, --user-dict-file <FILE>  Jieba user dictionary file; may be specified multiple times
+  -n, --norm-compat            Normalize CJK Compatibility Ideographs before processing
+  -E, --norm-compat-extended   Normalize extended Unicode compatibility forms before processing
       --in-enc <encoding>      Encoding for input: UTF-8|GB2312|GBK|gb18030|BIG5 [default: UTF-8]
       --out-enc <encoding>     Encoding for output: UTF-8|GB2312|GBK|gb18030|BIG5 [default: UTF-8]
   -h, --help                   Print help
@@ -115,6 +120,12 @@ opencc-jieba convert -i input.txt -o output.txt --config s2t
 # Convert Traditional Chinese (Taiwan Standard) to Simplified Chinese
 opencc-jieba convert -i input.txt -o output.txt --config tw2s
 
+# Normalize CJK Compatibility Ideographs before conversion
+opencc-jieba convert -i input.txt -o output.txt --config t2s --norm-compat
+
+# Normalize CJK Compatibility Ideographs and curated Unicode compatibility forms
+opencc-jieba convert -i input.txt -o output.txt --config t2s --norm-compat-extended
+
 # Convert with a Jieba user dictionary and a custom OpenCC conversion dictionary
 opencc-jieba convert -i input.txt -o output.txt --config hk2sp \
   --user-dict-file user_dict.txt \
@@ -133,6 +144,12 @@ opencc-jieba segment -i input.txt -o output.txt --delim ","
 # Segment using a Jieba user dictionary
 opencc-jieba segment -i input.txt -o output.txt \
   --user-dict-file user_dict.txt
+
+# Segment after normalizing CJK Compatibility Ideographs
+opencc-jieba segment -i input.txt -o output.txt --norm-compat
+
+# Segment after applying the full extended compatibility normalization
+opencc-jieba segment -i input.txt -o output.txt --norm-compat-extended
 
 # Segment with POS tagging (format: word:tag)
 opencc-jieba segment -i input.txt -o output.txt --mode tag --delim " " --separator ":"
@@ -207,6 +224,92 @@ fn main() {
 
 > 📦 Crate: [opencc-jieba-rs on crates.io](https://crates.io/crates/opencc-jieba-rs)  
 > 📄 Docs: [docs.rs/opencc-jieba-rs](https://docs.rs/opencc-jieba-rs/)
+
+---
+
+## Unicode compatibility normalization
+
+`OpenCC` provides three optional normalization methods for text containing Unicode compatibility characters, glyph
+variants, or artifacts commonly produced by PDF and document extraction:
+
+| Method                              | Behavior                                                                  |
+|-------------------------------------|---------------------------------------------------------------------------|
+| `OpenCC::normalize_compat`          | Normalizes Unicode CJK Compatibility Ideographs.                          |
+| `OpenCC::normalize_unicode_compat`  | Applies only the crate's curated `Unicode_Compatibility.txt` mappings.    |
+| `OpenCC::normalize_compat_extended` | Combines CJK Compatibility Ideographs with the curated compatibility map. |
+
+These methods are preprocessing helpers: they do not perform Simplified/Traditional conversion or modify the `OpenCC`
+instance. Normalize the input first, then pass the result to `convert`, `convert_with_config`, or a direct conversion
+method when needed. The normalization tables are internal implementation details; the supported public API is exposed
+through `OpenCC`.
+
+Normalize CJK Compatibility Ideographs:
+
+```rust
+use opencc_jieba_rs::OpenCC;
+
+fn main() {
+    let cc = OpenCC::new();
+
+    assert_eq!(
+        cc.normalize_compat("天龍八部書裡的喬峰是契丹人"),
+        "天龍八部書裡的喬峰是契丹人"
+    );
+}
+```
+
+Apply only the curated Unicode compatibility table. This deliberately leaves CJK Compatibility Ideographs unchanged:
+
+```rust
+use opencc_jieba_rs::OpenCC;
+
+fn main() {
+    let cc = OpenCC::new();
+
+    assert_eq!(cc.normalize_unicode_compat("聼"), "聽");
+    assert_eq!(cc.normalize_unicode_compat("金"), "金");
+}
+```
+
+Use extended normalization before OpenCC conversion when both normalization tables are desired:
+
+```rust
+use opencc_jieba_rs::OpenCC;
+
+fn main() {
+    let cc = OpenCC::new();
+    let normalized = cc.normalize_compat_extended("天龍八部書裡的聼眾");
+    let simplified = cc.convert(&normalized, "t2s", false);
+
+    assert_eq!(normalized, "天龍八部書裡的聽眾");
+    assert_eq!(simplified, "天龙八部书里的听众");
+}
+```
+
+Normalization can also improve Jieba segmentation by converting compatibility and glyph variants into canonical forms
+that exist in the Jieba dictionary:
+
+```rust
+use opencc_jieba_rs::OpenCC;
+
+fn main() {
+    let cc = OpenCC::new();
+    let input = "聼聼竒羙⽟䂖甁噐⾳";
+    let normalized = cc.normalize_compat_extended(input);
+
+    assert_eq!(
+        cc.jieba_cut(input, true),
+        vec!["聼", "聼", "竒", "羙", "⽟", "䂖", "甁", "噐", "⾳"]
+    );
+    assert_eq!(
+        cc.jieba_cut(&normalized, true),
+        vec!["聽聽", "奇美", "玉石", "瓶器音"]
+    );
+}
+```
+
+This is a curated, position-stable one-Unicode-scalar-to-one-Unicode-scalar normalization pass. It is not a general NFC,
+NFD, NFKC, or NFKD implementation. Unmapped characters are preserved.
 
 ---
 

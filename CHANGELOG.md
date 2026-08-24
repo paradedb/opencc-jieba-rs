@@ -10,6 +10,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Added optional Unicode compatibility preprocessing through
+  `OpenCC::normalize_compat`, `OpenCC::normalize_unicode_compat`, and
+  `OpenCC::normalize_compat_extended`. The normalization tables remain internal
+  implementation details and are not exposed as public modules.
 - Added `OpenCC::try_new_with_dictionary_zstd` to construct a converter from a custom Zstd conversion pack produced by
   `dict-generate`.
 - Added transactional `OpenCC::load_dictionary_zstd` so custom conversion packs compose with existing Jieba
@@ -42,9 +46,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   across the typed Rust API, workspace CLIs, C/C++ integration, and Python wrapper.
 - CLI: Added repeatable `-U` / `--user-dict-file <FILE>` support to the `convert`, `office`, and `segment` commands,
   allowing Jieba user dictionaries to be loaded for custom tokenization.
+- CLI: Added `-n` / `--norm-compat` and `-E` / `--norm-compat-extended`
+  to the `opencc-jieba convert` and `segment` commands for optional
+  compatibility normalization before processing. Extended normalization takes
+  precedence when
+  both flags are supplied.
 
 ### Changed
 
+- Refactored the runtime dictionary map and long-key-length set to use
+  `rustc_hash`'s `FxHashMap` and `FxHashSet` while preserving the serialized
+  dictionary schema.
 - Unified all direct conversion methods to accept a `punctuation: bool` argument, matching `convert` and
   `convert_with_config`. This is a source-breaking change for callers of the previously one-argument direct APIs
   (`t2tw`, `t2twp`, `tw2t`, `tw2tp`, `t2hk`, `t2hkp`, `hk2t`, `hk2tp`, `t2jp`, and `jp2t`); pass `false` to preserve the

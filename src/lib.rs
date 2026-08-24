@@ -13,6 +13,7 @@
 //!   [`OpenCC::try_new_with_user_dict_path`], and [`OpenCC::new_with_user_dict`]
 //! - Keyword extraction using TF-IDF or TextRank
 //! - Optional punctuation conversion (e.g., 「」 ↔ “”)
+//! - Optional Unicode compatibility normalization through [`OpenCC`]
 //!
 //! ## Example
 //!
@@ -178,6 +179,30 @@
 //! See [`OpenCC::load_dictionary_zstd`] to replace the conversion pack on an
 //! existing instance.
 //!
+//! ## Unicode Compatibility Normalization
+//!
+//! Compatibility normalization is exposed only through [`OpenCC`]:
+//!
+//! - [`OpenCC::normalize_compat`] normalizes CJK Compatibility Ideographs.
+//! - [`OpenCC::normalize_unicode_compat`] applies only the crate's curated
+//!   Unicode compatibility mappings.
+//! - [`OpenCC::normalize_compat_extended`] combines both tables.
+//!
+//! These methods are optional preprocessing steps and do not perform OpenCC
+//! dictionary conversion. Normalize first, then pass the result to
+//! [`OpenCC::convert`] or a direct conversion method when needed.
+//!
+//! ```rust
+//! use opencc_jieba_rs::OpenCC;
+//!
+//! let cc = OpenCC::new();
+//! let normalized = cc.normalize_compat_extended("天龍八部書裡的聼眾");
+//! let simplified = cc.t2s(&normalized, false);
+//!
+//! assert_eq!(normalized, "天龍八部書裡的聽眾");
+//! assert_eq!(simplified, "天龙八部书里的听众");
+//! ```
+//!
 //! ## When to Use What?
 //!
 //! - Use **`s2t` / `t2s`** for general purpose Simplified/Traditional
@@ -206,8 +231,10 @@ mod keyword;
 mod opencc;
 mod opencc_config;
 
+pub(crate) mod compat_ideographs;
 #[cfg(feature = "dictionary-build")]
 pub mod dictionary_build;
+pub(crate) mod unicode_compat;
 
 pub use dictionary_lib::{CustomDictFileSpec, CustomDictMode, CustomDictSpec, DictSlot};
 pub use jieba_rs::Keyword;

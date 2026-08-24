@@ -23,6 +23,7 @@ categories = ["text-processing", "internationalization", "command-line-utilities
 include = [
     "src/**/*.rs",
     "src/dictionary_lib/dicts/*.zst",
+    "src/data/*.txt",
     "Cargo.toml",
     "README.md",
     "MSRV-1.75.0-GUIDE.md",
@@ -46,6 +47,7 @@ zstd = "0.13"
 # Older toolchains may require a locked dependency graph; see MSRV-1.75.0-GUIDE.md.
 rayon = "=1.10"
 rayon-core = "=1.12"
+rustc-hash = "=2.1.1"
 
 # Keep include-flate at 0.3.0 for Edition 2021 / MSRV compatibility.
 # Do not pin libflate directly; include-flate depends on libflate ^2.0,

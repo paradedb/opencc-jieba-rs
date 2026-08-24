@@ -1,10 +1,10 @@
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
 
 /// Represents a single OpenCC-style dictionary table with
 /// precomputed metadata for fast phrase lookup.
 ///
-/// Each [`DictMap`] contains a `HashMap<String, String>` mapping
+/// Each [`DictMap`] contains an `FxHashMap<String, String>` mapping
 /// source phrases to target phrases (e.g., Traditional → Simplified),
 /// along with compact statistics such as minimum/maximum key lengths
 /// and bitmask-encoded length presence for fast gating.
@@ -42,7 +42,7 @@ use std::collections::{HashMap, HashSet};
 pub(crate) struct DictMap {
     /// Raw mapping of source phrase → target phrase.
     #[serde(default)]
-    map: HashMap<String, String>,
+    map: FxHashMap<String, String>,
 
     /// Shortest phrase length in Unicode scalars.
     #[serde(default)]
@@ -59,7 +59,7 @@ pub(crate) struct DictMap {
 
     /// Set of key lengths greater than 64 (rare, but supported).
     #[serde(default)]
-    long_lengths: HashSet<u16>,
+    long_lengths: FxHashSet<u16>,
 }
 
 /// Provides a zero-initialized, empty `DictMap`.
@@ -80,11 +80,11 @@ pub(crate) struct DictMap {
 impl Default for DictMap {
     fn default() -> Self {
         Self {
-            map: HashMap::new(),
+            map: FxHashMap::default(),
             min_len: 0,
             max_len: 0,
             key_len_mask: 0,
-            long_lengths: HashSet::new(),
+            long_lengths: FxHashSet::default(),
         }
     }
 }

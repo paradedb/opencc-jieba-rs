@@ -454,4 +454,111 @@ mod tests {
 
         assert_eq!(opencc.s2t("汉字", false), "漢字");
     }
+
+    // Norm Compat Tests
+
+    #[test]
+    fn normalize_compat_golden() {
+        let cc = OpenCC::new();
+
+        assert_eq!(
+            cc.normalize_compat("天龍八部書裡的喬峰是契丹人"),
+            "天龍八部書裡的喬峰是契丹人"
+        );
+    }
+
+    #[test]
+    fn opencc_normalize_compat_then_convert_golden() {
+        let cc = OpenCC::new();
+
+        let normalized = cc.normalize_compat("天龍八部書裡的喬峰是契丹人");
+
+        assert_eq!(normalized, "天龍八部書裡的喬峰是契丹人");
+
+        assert_eq!(
+            cc.convert(&normalized, "t2s", false),
+            "天龙八部书里的乔峰是契丹人"
+        );
+    }
+
+    #[test]
+    fn opencc_normalize_unicode_compat_golden() {
+        let cc = OpenCC::new();
+
+        // Curated Unicode compatibility normalization only.
+        assert_eq!(cc.normalize_unicode_compat("聼"), "聽");
+
+        // CJK Compatibility Ideographs are intentionally not handled here.
+        assert_eq!(cc.normalize_unicode_compat("金"), "金");
+    }
+
+    #[test]
+    fn opencc_normalize_compat_extended_golden() {
+        let cc = OpenCC::new();
+
+        // Combines CJK Compatibility Ideographs with the curated
+        // Unicode_Compatibility.txt mappings.
+        assert_eq!(
+            cc.normalize_compat_extended("天龍八部書裡的聼眾"),
+            "天龍八部書裡的聽眾"
+        );
+    }
+
+    #[test]
+    fn opencc_normalize_compat_extended_then_convert_golden() {
+        let cc = OpenCC::new();
+
+        let normalized = cc.normalize_compat_extended("天龍八部書裡的聼眾");
+
+        assert_eq!(normalized, "天龍八部書裡的聽眾");
+
+        assert_eq!(cc.convert(&normalized, "t2s", false), "天龙八部书里的听众");
+    }
+
+    #[test]
+    fn normalize_compat_extended_is_superset_of_basic_compat_golden() {
+        let cc = OpenCC::new();
+
+        let input = "天龍八部書裡的喬峰是契丹人";
+
+        assert_eq!(
+            cc.normalize_compat_extended(input),
+            cc.normalize_compat(input)
+        );
+    }
+
+    #[test]
+    fn opencc_normalize_compat_extended_variant_forms_golden() {
+        let cc = OpenCC::new();
+
+        let input = "聼聼竒羙⽟䂖甁噐⾳";
+        let normalized = cc.normalize_compat_extended(input);
+
+        assert_eq!(normalized, "聽聽奇美玉石瓶器音");
+        assert_eq!(cc.convert(&normalized, "t2s", false), "听听奇美玉石瓶器音");
+    }
+
+    #[test]
+    fn opencc_normalize_compat_extended_improves_jieba_segmentation() {
+        let cc = OpenCC::new();
+
+        let input = "聼聼竒羙⽟䂖甁噐⾳";
+        let normalized = cc.normalize_compat_extended(input);
+
+        assert_eq!(normalized, "聽聽奇美玉石瓶器音");
+
+        // Compatibility/variant forms are mostly unknown to Jieba,
+        // so the raw input falls back to character-level segmentation.
+        assert_eq!(
+            cc.jieba_cut(input, true),
+            vec!["聼", "聼", "竒", "羙", "⽟", "䂖", "甁", "噐", "⾳"]
+        );
+
+        // After extended compatibility normalization, Jieba can recognize
+        // the canonical forms using its normal dictionary.
+        assert_eq!(
+            cc.jieba_cut(&normalized, true),
+            vec!["聽聽", "奇美", "玉石", "瓶器音"]
+        );
+    }
 }
