@@ -44,6 +44,7 @@ serde_json = "1.0"
 zstd = "0.13"
 rayon = "1.10"
 rayon-core = "1.12"
+rustc-hash = "2.1"
 include-flate = "0.3.0"
 
 [profile.release]
