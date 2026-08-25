@@ -377,7 +377,17 @@ pub struct UserDictEntry {
 ///
 /// [`Jieba`]: https://docs.rs/jieba-rs
 pub struct OpenCC {
-    /// The Jieba tokenizer instance.
+    /// Shared low-level Jieba tokenizer.
+    ///
+    /// This field is intentionally exposed for advanced callers that need direct
+    /// access to `jieba-rs` APIs not wrapped by [`OpenCC`].
+    ///
+    /// OpenCC conversion dictionaries are stored separately, so read-only use of
+    /// this tokenizer does not modify the active OpenCC conversion mappings.
+    ///
+    /// To add Jieba user-dictionary entries, prefer
+    /// [`OpenCC::load_user_dict`], [`OpenCC::load_user_dict_entries`], or the
+    /// corresponding constructors so tokenizer replacement remains transactional.
     pub jieba: Arc<Jieba>,
     /// The conversion dictionary.
     dictionary: Dictionary,
@@ -484,6 +494,11 @@ impl OpenCC {
     /// by this [`OpenCC`] instance. This means they compose naturally with both
     /// the built-in conversion dictionary and dictionaries loaded through
     /// [`OpenCC::load_dictionary_zstd`].
+    ///
+    /// # Phrase matching and Jieba
+    ///
+    /// Phrase mappings operate on Jieba-tokenized text. If Jieba splits a custom
+    /// source phrase, add that phrase to the Jieba user dictionary as well.
     ///
     /// # Since
     /// v0.8.0
@@ -648,11 +663,13 @@ impl OpenCC {
     /// the provided user dictionary file. Newly loaded entries may override or
     /// influence segmentation behavior.
     ///
-    /// # Lifecycle
+    /// # Jieba sharing behavior
     ///
-    /// This method requires exclusive access to the internal tokenizer and must be
-    /// called **before** the [`OpenCC`] instance is shared (e.g. wrapped in [`Arc`]
-    /// or used across threads).
+    /// User-dictionary changes are applied to a cloned tokenizer and this
+    /// `OpenCC` instance is then switched to the updated tokenizer.
+    ///
+    /// Existing clones of [`OpenCC::jieba`] continue referring to the previous
+    /// tokenizer snapshot. Newly obtained clones use the updated tokenizer.
     ///
     /// # User dictionary format
     ///

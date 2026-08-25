@@ -9,8 +9,10 @@
 //! - Simplified ↔ Traditional Chinese conversion (including Taiwan, Hong Kong, Japanese variants)
 //! - Multi-pass dictionary-based phrase replacement
 //! - Fast and accurate word segmentation using Jieba
-//! - Jieba user dictionary loading with [`OpenCC::load_user_dict`],
+//! - Jieba user dictionary loading with [`OpenCC::load_user_dict`], [`OpenCC::load_user_dict_entries`],
 //!   [`OpenCC::try_new_with_user_dict_path`], and [`OpenCC::new_with_user_dict`]
+//! - Post-load custom OpenCC conversion dictionaries with per-slot
+//!   `append` and `override` semantics
 //! - Keyword extraction using TF-IDF or TextRank
 //! - Optional punctuation conversion (e.g., 「」 ↔ “”)
 //! - Optional Unicode compatibility normalization through [`OpenCC`]
@@ -35,7 +37,6 @@
 //!
 //! - 🚀 Fast and parallelized
 //! - 🧪 Battle-tested on multi-million character corpora
-//! - 📦 Ready for crates.io and docs.rs publication
 //!
 //! ---
 //! # Conversion Overview (OpenCC + Jieba)
