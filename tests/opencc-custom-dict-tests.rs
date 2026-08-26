@@ -210,7 +210,13 @@ mod tests {
             }])
             .unwrap();
 
-        assert_eq!(opencc.jieba.cut("帕兰蒂尔", false), vec!["帕兰蒂尔"]);
+        let words: Vec<&str> = opencc
+            .jieba
+            .cut("帕兰蒂尔", false)
+            .into_iter()
+            .map(|token| token.word)
+            .collect();
+        assert_eq!(words, vec!["帕兰蒂尔"]);
         assert_eq!(opencc.s2t("帕兰蒂尔", false), "柏蘭蒂爾");
     }
 }
