@@ -315,10 +315,10 @@ jobs:
       - name: Write README.txt and version.txt
         shell: bash
         run: |
-          echo "Version: ${{ github.ref_name }}" > dist/version.txt
+          echo "Version: ${GITHUB_REF_NAME}" > dist/version.txt
 
           {
-            echo "Opencc-Jieba ${{ github.ref_name }}"
+            echo "Opencc-Jieba ${GITHUB_REF_NAME}"
             echo ""
             echo "Package: ${{ matrix.platform }} / ${{ matrix.arch }}"
             if [ "${{ matrix.platform }}" = "linux" ]; then
@@ -346,7 +346,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ARTIFACT_NAME="opencc-jieba-${{ github.ref_name }}-${{ matrix.platform }}-${{ matrix.arch }}"
+          ARTIFACT_NAME="opencc-jieba-${GITHUB_REF_NAME}-${{ matrix.platform }}-${{ matrix.arch }}"
           if [ "${{ matrix.archive_ext }}" = "tar.gz" ]; then
             tar -czf "${ARTIFACT_NAME}.tar.gz" -C dist .
           else
