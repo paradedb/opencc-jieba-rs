@@ -19,8 +19,8 @@ jobs:
     env:
       RUSTDOCFLAGS: -D warnings
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
       - name: Build docs with all features and without default features
         run: |
           cargo doc --locked -p opencc-jieba-rs --no-deps --all-features
@@ -38,8 +38,8 @@ jobs:
     name: C and C++17 API regression
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
       - run: cargo +stable build -p opencc_jieba_capi --locked
       - name: Compile and run against canonical headers
         env:
@@ -56,10 +56,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@v7
 
       - name: Install Rust 1.75.0
-        uses: dtolnay/rust-toolchain@173bc5f77e0f2b4f1cf2a1657622959aa90d972f # 1.75.0
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - name: Test workspace on MSRV (no doctests)
         if: github.event_name == 'push'
